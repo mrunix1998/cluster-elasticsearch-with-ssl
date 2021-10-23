@@ -1,0 +1,28 @@
+## Cluster Settings
+cluster.name: "elk-tls-cluster"
+network.host: "0.0.0.0"
+http.host: 0.0.0.0
+network.publish_host: 192.168.118.123
+
+## License
+xpack.license.self_generated.type: trial
+
+# Security
+xpack.security.enabled: true
+xpack.monitoring.collection.enabled: true
+xpack.security.authc.token.enabled: true
+xpack.security.authc.api_key.enabled: true
+
+# transport security settings
+# This is mostly used for inter-node communications between parts of the ELK stack
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.key: ${CONFIG_DIR}/es02.key
+xpack.security.transport.ssl.certificate: ${CONFIG_DIR}/es02.crt
+xpack.security.transport.ssl.certificate_authorities: ${CONFIG_DIR}/ca.crt
+
+# HTTP security setttings
+# This is used for client server ssl/tls communications (e.g. browser to kibana)
+xpack.security.http.ssl.enabled: true
+xpack.security.http.ssl.key: ${CONFIG_DIR}/es02.key
+xpack.security.http.ssl.certificate: ${CONFIG_DIR}/es02.crt
+xpack.security.http.ssl.certificate_authorities: ${CONFIG_DIR}/ca.crt
