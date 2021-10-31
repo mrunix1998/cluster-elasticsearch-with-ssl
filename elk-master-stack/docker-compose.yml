@@ -1,0 +1,159 @@
+version: '3.5'
+
+# will contain all elasticsearch data.
+volumes:
+  data:
+
+secrets:
+  ca.crt:
+    file: ./secrets/certificate_authority/ca/ca.crt
+  elasticsearch.keystore:
+    file: ./secrets/elasticsearch.keystore
+  elastic-stack-ca.p12:
+    file: ./secrets/certificate_authority/elastic-stack-ca.p12
+  elasticsearch.key:
+    file: ./secrets/certificates/es01/es01.key
+  elasticsearch.cert:
+    file: ./secrets/certificates/es01/es01.crt
+  kibana.key:
+    file: ./secrets/certificates/kibana/kibana.key
+  kibana.cert:
+    file: ./secrets/certificates/kibana/kibana.crt
+  logstash.pkcs8.key:
+    file: ./secrets/certificates/logstash/logstash.pkcs8.key
+  logstash.key:
+    file: ./secrets/certificates/logstash/logstash.key
+  logstash.p12:
+    file: ./secrets/keystores/logstash/logstash.p12
+  logstash.cert:
+    file: ./secrets/certificates/logstash/logstash.crt
+
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.1
+    container_name: es01
+    environment:
+      - CONFIG_DIR=${ELASTIC_DIR}/config            
+      - ELASTIC_USERNAME=elastic
+      - ELASTIC_PASSWORD=elastic
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - path.repo=${ELASTIC_DIR}/backups
+      - node.name=es01
+      - node.roles=master,data,ingest
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - Des.discovery.zen.ping.unicast.hosts=${NODE1_IP},${NODE2_IP},${NODE3_IP}
+      - Des.discovery.zen.minimum_master_nodes=3
+      - Des.network.publish_host=es01
+      - transport.tcp.port=9300
+      - http.port=9200
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data01:/usr/share/elasticsearch/data
+      - ./elasticsearch/config/elasticsearch.yml:${ELASTIC_DIR}/config/elasticsearch.yml:ro
+      - $PWD/backups:${ELASTIC_DIR}/backups      
+    secrets:
+      - source: elasticsearch.keystore
+        target: ${ELASTIC_DIR}/config/elasticsearch.keystore
+      - source: ca.crt
+        target: ${ELASTIC_DIR}/config/ca.crt
+      - source: elasticsearch.cert
+        target: ${ELASTIC_DIR}/config/es01.crt
+      - source: elasticsearch.key
+        target: ${ELASTIC_DIR}/config/es01.key
+    ports:
+      - 9200:9200
+      - 9300:9300
+    extra_hosts:
+      - "es01:${NODE1_IP}"
+      - "es02:${NODE2_IP}"
+      - "es03:${NODE3_IP}"
+    network_mode: "host"
+
+  kibana:
+    container_name: kibana
+    hostname: kibana
+    build:
+      context: kibana/
+      args:
+        ELK_VERSION: $ELK_VERSION
+    restart: unless-stopped
+    volumes:
+      - ./kibana/config/kibana.yml:${KIBANA_DIR}/config/kibana.yml:ro
+    environment:
+      CONFIG_DIR: ${KIBANA_DIR}/config
+      ELASTIC_USERNAME: ${ELASTIC_USERNAME}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      ENCRYPTION_KEY: ${XPACK_ENCRYPTION_KEY}
+    secrets:
+      - source: ca.crt
+        target: ${KIBANA_DIR}/config/ca.crt
+      - source: kibana.cert
+        target: ${KIBANA_DIR}/config/kibana.crt
+      - source: kibana.key
+        target: ${KIBANA_DIR}/config/kibana.key
+    ports:
+      - "5601:5601"
+    extra_hosts:
+      - "es01:${NODE1_IP}"
+      - "es02:${NODE2_IP}"
+      - "es03:${NODE3_IP}"      
+    network_mode: "host"
+
+    depends_on: 
+      - es01
+
+  logstash:
+    container_name: logstash
+    hostname: logstash
+    build:
+      context: logstash/
+      args:
+        ELK_VERSION: $ELK_VERSION
+    restart: unless-stopped
+    volumes:
+      - ./logstash/config/logstash.yml:${LOGSTASH_DIR}/config/logstash.yml
+      - ./logstash/pipeline/logstash.conf:${LOGSTASH_DIR}/pipeline/logstash.conf
+      - ./logstash/pipeline/metricbeat.conf:${LOGSTASH_DIR}/pipeline/metricbeat.conf
+    environment:
+      path.settings: null
+      CONFIG_DIR: ${LOGSTASH_DIR}/config
+      ELASTIC_USERNAME: ${ELASTIC_USERNAME}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      LS_JAVA_OPTS: "-Xmx${LOGSTASH_HEAP} -Xms${LOGSTASH_HEAP}"
+    secrets:
+      - source: ca.crt
+        target: ${LOGSTASH_DIR}/config/ca.crt
+      - source: logstash.cert
+        target: ${LOGSTASH_DIR}/config/logstash.crt
+      - source: logstash.pkcs8.key
+        target: ${LOGSTASH_DIR}/config/logstash.pkcs8.key
+      - source: logstash.key
+        target: ${LOGSTASH_DIR}/config/logstash.key
+      - source: logstash.p12
+        target: ${LOGSTASH_DIR}/config/logstash.p12
+    network_mode: "host"
+
+    ports:
+    - "12201:12201/udp"
+    - "5044:5044"
+    - "5045:5045/tcp"
+    - "5046:5046"
+    - "9600:9600"
+    - "5000:5000/tcp"
+    - "5000:5000/udp"
+    extra_hosts:
+      - "es01:${NODE1_IP}"
+      - "es02:${NODE2_IP}"
+      - "es03:${NODE3_IP}"    
+    depends_on: 
+      - es01
+      - kibana
+
+volumes:
+  data01:
+    driver: local

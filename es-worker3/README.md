@@ -1,4 +1,4 @@
-# On worker 2 node 
+# On worker 3 node 
 
 Befor any works you should sure that secret file from master node exist in this node
 

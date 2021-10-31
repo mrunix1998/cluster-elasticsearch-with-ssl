@@ -12,14 +12,14 @@ secrets:
   elastic-stack-ca.p12:
     file: ./secrets/certificate_authority/elastic-stack-ca.p12
   elasticsearch.key:
-    file: ./secrets/certificates/es02/es02.key
+    file: ./secrets/certificates/es03/es03.key
   elasticsearch.cert:
-    file: ./secrets/certificates/es02/es02.crt
+    file: ./secrets/certificates/es03/es03.crt
 
 services:
-  es02:
-    container_name: es02
-    hostname: es02
+  es03:
+    container_name: es03
+    hostname: es03
     build:
       context: elasticsearch/
       args:
@@ -30,17 +30,17 @@ services:
       - ELASTIC_USERNAME=elastic
       - ELASTIC_PASSWORD=elastic
       - path.repo=${ELASTIC_DIR}/backups
-      - node.name=es02
-      - node.roles=master,data        
-      - discovery.seed_hosts=es01,es03
+      - node.name=es03
+      - node.roles=master,data
+      - discovery.seed_hosts=es01,es02
       - cluster.initial_master_nodes=es01,es02,es03
       - bootstrap.memory_lock=true
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - Des.discovery.zen.ping.unicast.hosts=192.168.118.98,192.168.118.123,192.168.118.100
+      - Des.discovery.zen.ping.unicast.hosts=${NODE1_IP},${NODE2_IP},${NODE3_IP}
       - Des.discovery.zen.minimum_master_nodes=3
-      - Des.network.publish_host=es02
+      - Des.network.publish_host=es03
       - transport.tcp.port=9300
-      - http.port=9200      
+      - http.port=9200
     volumes:
       - data:${ELASTIC_DIR}
       - ./elasticsearch/config/elasticsearch.yml:${ELASTIC_DIR}/config/elasticsearch.yml:ro
@@ -51,16 +51,16 @@ services:
       - source: ca.crt
         target: ${ELASTIC_DIR}/config/ca.crt
       - source: elasticsearch.cert
-        target: ${ELASTIC_DIR}/config/es02.crt
+        target: ${ELASTIC_DIR}/config/es03.crt
       - source: elasticsearch.key
-        target: ${ELASTIC_DIR}/config/es02.key
+        target: ${ELASTIC_DIR}/config/es03.key
     ports:
       - "9200:9200"
       - "9300:9300"
     extra_hosts:
-      - "es01:192.168.118.100"
-      - "es02:192.168.118.123"
-      - "es03:192.168.118.98"        
+      - "es01:${NODE1_IP}"
+      - "es02:${NODE2_IP}"
+      - "es03:${NODE3_IP}"
     ulimits:
       memlock:
         soft: -1
@@ -68,8 +68,4 @@ services:
       nofile:
         soft: 200000
         hard: 200000
-    network_mode: "host" 
-
-#networks:
-#  elk:
-#    driver: bridge
+    network_mode: "host"

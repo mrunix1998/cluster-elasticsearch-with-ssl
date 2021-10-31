@@ -1,0 +1,31 @@
+instances:
+  - name: es01
+    dns:
+      - es01
+    ip:
+      - "0.0.0.0"
+      - "${NODE1_IP}"
+  - name: es02
+    dns:
+      - es02
+    ip:
+      - "0.0.0.0"
+      - "${NODE2_IP}"
+  - name: es03
+    dns:
+      - es03
+    ip:
+      - "0.0.0.0"
+      - "${NODE3_IP}"
+  - name: kibana
+    dns:
+      - kibana
+    ip:
+      - "0.0.0.0"
+      - "${NODE1_IP}"
+  - name: logstash
+    dns:
+      - logstash
+    ip:
+      - "0.0.0.0"
+      - "${NODE1_IP}
